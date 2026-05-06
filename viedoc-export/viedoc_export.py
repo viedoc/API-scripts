@@ -1,14 +1,54 @@
 import argparse  # For parsing command-line arguments
 import io  # For handling byte streams
+import json  # For JSON parsing
 import zipfile  # For handling zip files
 import requests  # For making HTTP requests
 import time  # For adding delays
-import re  # For regular expression operations
 import os  # For file and directory operations
 import logging  # For logging information
 
 # Configure logging to display info messages with a specific format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_EXPORT_MODEL_PATH = os.path.join(SCRIPT_DIR, "export_model.example.json")
+
+
+def load_export_model(export_model_input):
+    """
+    Load export model from a file or use the provided string.
+    
+    Args:
+    - export_model_input (str): Either a file path or inline JSON string
+    
+    Returns:
+    - str: JSON string representing the export model
+    """
+    if not export_model_input:
+        logging.info("No export model provided. Using default file: %s", DEFAULT_EXPORT_MODEL_PATH)
+        export_model_input = DEFAULT_EXPORT_MODEL_PATH
+    
+    if not export_model_input.endswith(".json"):
+        return export_model_input
+    
+    candidate_paths = [export_model_input]
+    file_path = None
+
+    if not os.path.isabs(export_model_input):
+        candidate_paths.append(os.path.join(SCRIPT_DIR, export_model_input))
+
+    for path in candidate_paths:
+        if os.path.isfile(path):
+            file_path = path
+    if not file_path:
+        checked_paths = ", ".join(candidate_paths)
+        raise FileNotFoundError(f"Export model file not found. Checked: {checked_paths}")
+    logging.info("Loading export model from file: %s", file_path)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        json_data = json.load(f)
+
+    # Treat as inline JSON
+    return json.dumps(json_data)
 
 def get_token(url, client_id, client_secret):
     """
@@ -97,7 +137,10 @@ def download_export(url, token, export_id, extract_zip, remove_prefix):
 
     # Extract the filename from the Content-Disposition header
     content_disposition_header = response.headers.get("Content-Disposition")
-    filename = re.search("filename=(.+)", content_disposition_header).group(1)
+    filename = "UNKNOWN_FILENAME"
+    if content_disposition_header and "filename=" in content_disposition_header:
+        # Use split instead of regex to handle Content-Disposition with both filename= and filename*= headers
+        filename = content_disposition_header.split("filename=")[1].split(";")[0].strip().strip('"')
 
     # Create the 'out' folder if it doesn't exist
     if not os.path.exists("out"):
@@ -162,6 +205,9 @@ def main(token_url, api_url, client_id, client_secret, export_model, extract_zip
     # Log only the first 3 characters of the client_id and client_secret for security
     logging.info("Client ID: %s", client_id[:3] + '*' * (len(client_id) - 3))
     logging.info("Client secret: %s", client_secret[:3] + '*' * (len(client_secret) - 3))
+    
+    # Load export model from file if needed
+    export_model = load_export_model(export_model)
     logging.info("Export model: %s", export_model)
     
     # Get the access token
@@ -185,7 +231,15 @@ if __name__ == "__main__":
     parser.add_argument("--api_url", required=True, help="API URL")
     parser.add_argument("--client_id", required=True, help="Client ID")
     parser.add_argument("--client_secret", required=True, help="Client secret")
-    parser.add_argument("--export_model", required=True, help="Export model")
+    parser.add_argument(
+        "--export_model",
+        required=False,
+        default=None,
+        help=(
+            "Inline JSON or a JSON file path. PowerShell users should pass a plain path "
+            "(for example, export_model.example.json). Defaults to the bundled example file."
+        ),
+    )
     parser.add_argument("--extract_zip", required=False, default="Y", choices=["Y", "N"], help="Extract zip file (Y/N)")
     parser.add_argument("--remove_prefix", required=False, default="Y", choices=["Y", "N"], help="Remove prefix from extracted files (Y/N)")
 

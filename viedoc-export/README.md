@@ -1,60 +1,159 @@
-# Viedoc Export Script
+# Viedoc Export Python Script
 
-These Python and R scripts triggers and downloads exports from Viedoc EDC. They include functionalities to:
-- Authenticate and obtain an access token.
-- Initiate the export process.
-- Check the status of the export.
-- Download and optionally extract the exported files.
+This script:
+- gets an access token
+- starts a Viedoc export
+- polls until the export is ready
+- downloads the result into the `out` directory
+- extracts zip exports by default
 
-## Usage
-To run the Viedoc Export Script, use the following command:
+Run commands from the `viedoc-export` directory.
 
-- For python: 
+## Tested Scope
 
-Install dependencies
+Checked in this repo on Windows on April 27, 2026:
+- `pip install requests`
+- `python viedoc_export.py --help`
+- PowerShell run examples against the stage API
+- `cmd.exe` run examples against the stage API
+- `py -m venv .venv` was attempted, but this Microsoft Store Python installation created a partial environment without activation scripts or `pip`
 
-```sh
+Bash examples below use standard Unix shell syntax for Linux/macOS.
+
+## Supported Arguments
+
+| Argument | Description | Required |
+|----------|-------------|----------|
+| `--token_url` | Token endpoint | Yes |
+| `--api_url` | Viedoc API base URL | Yes |
+| `--client_id` | Client ID | Yes |
+| `--client_secret` | Client secret | Yes |
+| `--export_model` | Inline JSON or `.json` file path | No |
+| `--extract_zip` | `Y` or `N` | No |
+| `--remove_prefix` | `Y` or `N` | No |
+
+If `--export_model` is omitted, the script loads [`export_model.example.json`](./export_model.example.json).
+
+## Virtual Environment Setup
+
+These are the standard `venv` commands. In this Windows environment, `py -m venv .venv` did not complete cleanly, so prefer an existing environment or a non-Microsoft-Store Python install if you need a fresh virtual environment here.
+
+### Bash on Linux/macOS
+
+Create and activate a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install requests
+```
+
+### Windows PowerShell
+
+Create and activate a virtual environment:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install requests
+```
+
+If script activation is blocked, use:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+### Windows `cmd.exe`
+
+Create and activate a virtual environment:
+
+```cmd
+py -m venv .venv
+.\.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install requests
+```
+
+### Without a Virtual Environment
+
+```powershell
 pip install requests
 ```
-Run:
 
-```sh
-python viedoc_export.py --token_url <TOKEN_URL> --api_url <API_URL> --client_id <CLIENT_ID> --client_secret <CLIENT_SECRET> --export_model <EXPORT_MODEL> [--output_path <OUTPUT_PATH>][--extract_zip Y/N] [--remove_prefix Y/N]
-```
-Example:
+## Usage
 
-```sh
-python viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "84731234-1234-1234-1234-1234cf658d98" --client_secret "FAaaTZaxxxxxxxxxxxxxxxxxxxxxxJzfw" --export_model '{"outputFormat":"CSV","includeVisitDates":true}'
+General form:
+
+```text
+python viedoc_export.py --token_url <TOKEN_URL> --api_url <API_URL> --client_id <CLIENT_ID> --client_secret <CLIENT_SECRET> [--export_model <INLINE_JSON_OR_JSON_FILE>] [--extract_zip Y|N] [--remove_prefix Y|N]
 ```
 
-- For R:
+## Export Model Behavior
 
-Install dependencies:
+- If the `--export_model` value ends with `.json`, the script treats it as a file path
+- Relative `.json` paths are resolved from the current directory first, then from the script directory
+- Any non-`.json` value is treated as inline JSON
+- Using a `.json` file is the safest option across shells
 
-```sh
-Rscript -e 'install.packages(c("httr", "jsonlite", "logging", "argparse", "stringr", "tools", "zip"), repos = "https://cran.r-project.org")'
-```
-Run: 
+## Bash Examples (Unix OS e.g. Linux or MacOS)
 
-```sh
-Rscript viedoc_export.R --token_url <TOKEN_URL> --api_url <API_URL> --client_id <CLIENT_ID> --client_secret <CLIENT_SECRET> --export_model <EXPORT_MODEL> [--output_path <OUTPUT_PATH>] [--extract_zip Y/N] [--remove_prefix Y/N]
-```
+Use the bundled example file:
 
-Example:
-```sh
-Rscript viedoc_export.R --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "84731234-1234-1234-1234-1234cf658d98" --client_secret "FAaaTZaxxxxxxxxxxxxxxxxxxxxxxJzfw" --export_model '{"outputFormat":"CSV","includeVisitDates":true}'
-```sh
-
-## Arguments:
-- --token_url: URL to get the authentication token.
-- --api_url: Base URL for the Viedoc API.
-- --client_id: Client ID for authentication.
-- --client_secret: Client secret for authentication.
-- --export_model: JSON string representing the export model. Ex. 
-
-```
-{"outputFormat":"CSV","includeVisitDates":false,"includeEditStatus":false,"includeSignatures":false,"includeReviewStatus":false,"includeSdv":false,"includeQueries":false,"includeQueryHistory":false,"includeSubjectStatus":false,"includePendingForms":false}"
+```bash
+python3 viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret" --export_model ./export_model.example.json
 ```
 
-- --extract_zip: (Optional) Extract the zip file if set to Y. Default is Y.
-- --remove_prefix: (Optional) Remove the prefix from extracted files if set to Y. Default is Y.
+Use the default bundled example file by omitting `--export_model`:
+
+```bash
+python3 viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret"
+```
+
+Pass inline JSON:
+
+```bash
+python3 viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret" --export_model '{"outputFormat":"CSV","includeVisitDates":true}'
+```
+
+## PowerShell Examples
+
+Use the bundled example file:
+
+```powershell
+python viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret" --export_model .\export_model.example.json
+```
+
+Use the default bundled example file by omitting `--export_model`:
+
+```powershell
+python viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret"
+```
+
+Pass inline JSON:
+
+```powershell
+python viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret" --export_model '{\"outputFormat\":\"CSV\",\"includeVisitDates\":true}'
+```
+
+## `cmd.exe` Examples
+
+Use the bundled example file:
+
+```cmd
+python viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret" --export_model .\export_model.example.json
+```
+
+Pass inline JSON:
+
+```cmd
+python viedoc_export.py --token_url "https://v4ststraining.viedoc.net/connect/token" --api_url "https://v4apitraining.viedoc.net" --client_id "your-client-id" --client_secret "your-client-secret" --export_model "{\"outputFormat\":\"CSV\"}"
+```
+
+## Output
+
+- Files are written to the `out` directory under the current working directory
+- There is no `--output_path` argument in `viedoc_export.py` so output path cannot be customised
