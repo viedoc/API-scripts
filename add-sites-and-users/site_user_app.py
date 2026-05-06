@@ -32,12 +32,21 @@ if path != "/":  # Output folder must have been selected
 
 # Get server to connect to
 if path != "/":  # Output folder must have been selected
-    Server = 0
-    while(not Server in [str(x) for x in range(1, 12)]):
-        print("Which server should be used?\n 1: Europe -  Training\n 2: Europe -  Production\n 3: USA    -  Training\n 4: USA    -  Production")
-        print(" 5: Japan  -  Training\n 6: Japan  -  Production\n 7: China  -  Training\n 8: China  -  Production\n 9: Stage\n10: ExternalTest\n11: Other")
-        Server = input("Choose one of the above options: ")
-    sts, api = get_server(Server)
+    endpoint_options = get_available_endpoint_options()
+    option_numbers = [str(index) for index in range(1, len(endpoint_options) + 1)]
+    server_choice = "0"
+    while server_choice not in option_numbers:
+        print("Which region and environment should be used?")
+        for index, option in enumerate(endpoint_options, start = 1):
+            region, environment, resolved = option
+            print(f" {index}: {region.title()} - {environment.title()} ({resolved.web_api})")
+        server_choice = input("Choose one of the above options: ").strip()
+
+    region, environment, resolved = endpoint_options[int(server_choice) - 1]
+    print("\nPress Enter to use the YAML defaults, or provide URL overrides from Viedoc Admin.")
+    api_override = input(f"API URL [{resolved.web_api}]: ").strip()
+    token_override = input(f"Token URL [{resolved.sts}]: ").strip()
+    sts, api = get_server(region, environment, api_override, token_override)
 
     # Get the client credentials interactively
     print("\nProvide the Client ID and Client secret obtained from Viedoc Admin - API configuration:")

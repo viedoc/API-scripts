@@ -1,0 +1,12 @@
+{
+  "outputFormat": "CSV",
+  "includeVisitDates": true,
+  "includeEditStatus": true,
+  "includeSignatures": true,
+  "includeReviewStatus": true,
+  "includeSdv": true,
+  "includeQueries": true,
+  "includeQueryHistory": true,
+  "includeSubjectStatus": true,
+  "includePendingForms": true
+}

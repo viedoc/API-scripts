@@ -4,50 +4,54 @@ import pandas as pd
 import datetime
 import os.path
 import re
+import sys
+from pathlib import Path
 from site_user_import.timezones import tz_conversion
 
-def get_server(Server):
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from api_helpers import DEFAULT_ENDPOINTS_FILE, load_endpoint_resolver
+
+
+def get_available_endpoint_options(endpoints_file = None):
     """
-    Allows the user to select a server instance and returns the corresponding URLs.
+    Returns available region/environment combinations from the endpoint YAML.
+    """
+    resolver = load_endpoint_resolver(endpoints_file or DEFAULT_ENDPOINTS_FILE)
+    options = []
+    for region in resolver.list_regions():
+        for environment in resolver.list_environments(region):
+            resolved = resolver.resolve(region = region, environment = environment)
+            if resolved.web_api and resolved.sts:
+                options.append((region, environment, resolved))
+    return options
+
+
+def get_server(region, environment, api_url = "", token_url = "", endpoints_file = None):
+    """
+    Resolve API URLs from the endpoint YAML with optional overrides.
     Args:
-        Server (str): Selected server instance.
+        region (str): Region key from the endpoint YAML.
+        environment (str): Environment key from the endpoint YAML.
+        api_url (str): Optional API URL override.
+        token_url (str): Optional token URL override.
+        endpoints_file (str): Optional custom endpoint YAML path.
     Returns:
         (tuple): [0] Token URL, [1] API URL.
     """
-    if(Server == "1"):
-        sts = "https://v4ststraining.viedoc.net/connect/token"
-        api = "https://v4apitraining.viedoc.net"
-    elif(Server == "2"):
-        sts = "https://v4sts.viedoc.net/connect/token"
-        api = "https://v4api.viedoc.net"
-    elif(Server == "3"):
-        sts = "https://ststraining.us.viedoc.com/connect/token"
-        api = "https://apitraining.us.viedoc.com"
-    elif(Server == "4"):
-        sts = "https://sts.us.viedoc.com/connect/token"
-        api = "https://api.us.viedoc.com"
-    elif(Server == "5"):
-        sts = "https://v4ststrainingjp.viedoc.net/connect/token"
-        api = "https://v4apitrainingjp.viedoc.net"
-    elif(Server == "6"):
-        sts = "https://v4stsjp.viedoc.net/connect/token"
-        api = "https://v4apijp.viedoc.net"
-    elif(Server == "7"):
-        sts = "https://ststraining.viedoc.cn/connect/token"
-        api = "https://apitraining.viedoc.cn"
-    elif(Server == "8"):
-        sts = "https://sts.viedoc.cn/connect/token"
-        api = "https://api.viedoc.cn"
-    elif(Server == "9"):
-        sts = "https://v4stsstage.viedoc.net/connect/token"
-        api = "https://v4apistage.viedoc.net"
-    elif(Server == "10"):
-        sts = "https://externaltest4sts.viedoc.dev/connect/token"
-        api = "https://externaltest4api.viedoc.dev"
-    elif(Server == "11"):
-        print("\nOther was selected. Manually provide the URLs.")
-        sts = input("Provide the token URL from Admin: ")
-        api = input("Provide the API URL from Admin: ")
+    resolver = load_endpoint_resolver(endpoints_file or DEFAULT_ENDPOINTS_FILE)
+    resolved = resolver.resolve(
+        region = region,
+        environment = environment,
+        web_api = api_url or None,
+        sts = token_url or None,
+    )
+    if not resolved.sts or not resolved.web_api:
+        raise ValueError("Could not determine both token and API URLs.")
+    sts = resolved.sts
+    api = resolved.web_api
     return sts, api
 
 

@@ -1,0 +1,3 @@
+study_ref,client_id,client_secret,region,environment,api_url,token_url,max_wait_seconds,poll_interval_seconds,extract_zip,remove_prefix
+TRAINING_STUDY_A,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,replace-with-client-secret,eu,training,,,600,10,Y,Y
+PRODUCTION_STUDY_B,ffffffff-1111-2222-3333-444444444444,replace-with-client-secret,usa,production,,,900,15,Y,Y

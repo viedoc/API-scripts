@@ -14,6 +14,14 @@ import os.path
 import os
 import re
 import csv
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from api_helpers import DEFAULT_ENDPOINTS_FILE, load_endpoint_resolver
 
 def checkMappingFiles(pars):
     #This function searches the mapping files for some common mistakes.
@@ -30,12 +38,12 @@ def checkMappingFiles(pars):
             print("THIS used instead of $THIS in mapping file " + i + "!")
             warnings += 1
         #Newlines in the Column Name are indicated &#xa; and can interfere with the mapping:
-        newlines = re.findall("(?<=SASFieldName=\")[\w\s]+(?=&#xA;)", mf)
+        newlines = re.findall(r'(?<=SASFieldName=")[\w\s]+(?=&#xA;)', mf)
         for j in newlines:
             print("There is a newline in column name " + j + " in mapping file " + i + "!")
             warnings += 1
         #Extra whitespaces at the end of the Column Name can interfere with the mapping:
-        extraspaces = re.findall("(?<=SASFieldName=\")[\w\s]+(?=\s\"\>)", mf)
+        extraspaces = re.findall(r'(?<=SASFieldName=")[\w\s]+(?=\s"\>)', mf)
         for j in extraspaces:
             print("There is a whitespace at the end of column name " + j + " in mapping file " + i + "!")
             warnings += 1
@@ -59,6 +67,17 @@ def writexml(pars):
             f.write('<AllowInitiatingStudyEvents>' + pars["initEvent"] + '</AllowInitiatingStudyEvents>\n')
             f.write('</ImportConfiguration>\n')
         f.write('</ViedocImportConfiguration>')
+
+
+def get_wcf_endpoint_options():
+    resolver = load_endpoint_resolver(DEFAULT_ENDPOINTS_FILE)
+    options = []
+    for region in resolver.list_regions():
+        for environment in resolver.list_environments(region):
+            resolved = resolver.resolve(region = region, environment = environment)
+            if resolved.wcf_wsdl:
+                options.append((region, environment, resolved.wcf_wsdl.removesuffix("?wsdl")))
+    return options
 
 runApp = input("Did you complete the above steps? [Y/N]: ").strip()
 yes = ["Y", "Yes", "y", "yes", "True", "true", "1"]
@@ -84,17 +103,18 @@ if runApp in yes:
     with open(csvFile) as f:
         pars["delimiter"] = csv.Sniffer().sniff(f.read(1000)).delimiter
     print('The delimiter in your CSV file is "' + pars["delimiter"] + '".')
-    serverType = 0
-    while serverType not in ["1", "2"]:
-        serverType = input("On which server TYPE is your study? 1=Production, 2=Training [1/2]: ").strip()
-    if serverType == "1":
-        serveroptions = ["https://v4api.viedoc.net/HelipadService.svc", "https://api.us.viedoc.com/HelipadService.svc", "https://v4apijp.viedoc.net/HelipadService.svc", "https://api.viedoc.cn/HelipadService.svc"]
-    elif serverType == "2":
-        serveroptions = ["https://v4apitraining.viedoc.net/HelipadService.svc", "https://apitraining.us.viedoc.com/HelipadService.svc", "https://v4apitrainingjp.viedoc.net/HelipadService.svc", "https://apitraining.viedoc.cn/HelipadService.svc"]
-    serverRegion = 0
-    while serverRegion not in ["1", "2", "3", "4"]:
-        serverRegion = input("On which server REGION is your study? 1=EU, 2=US, 3=Japan, 4=China [1/2/3/4]: ").strip()
-    pars["server"] = serveroptions[int(serverRegion) - 1]
+    endpoint_options = get_wcf_endpoint_options()
+    option_numbers = [str(index) for index in range(1, len(endpoint_options) + 1)]
+    serverChoice = "0"
+    while serverChoice not in option_numbers:
+        print("Which region and environment is your study on?")
+        for index, option in enumerate(endpoint_options, start = 1):
+            region, environment, endpoint = option
+            print(f" {index}: {region.title()} - {environment.title()} ({endpoint})")
+        serverChoice = input("Choose one of the above options: ").strip()
+    region, environment, default_endpoint = endpoint_options[int(serverChoice) - 1]
+    override_server = input(f"Provide WCF API URL override from Admin if needed [{default_endpoint}]: ").strip()
+    pars["server"] = override_server if override_server else default_endpoint
     pars["GUID"] = ""
     while not re.search(r"^[0-9a-f-]{36}$", pars["GUID"]):
         pars["GUID"] = input("Provide the study GUID obtained from Viedoc Admin - API Configuration: ").strip()
