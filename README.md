@@ -15,3 +15,16 @@ Welcome to the Scripts repository for the Viedoc organization. This repository i
 - 2024 May: initial repo creation, upload of export script.
 - 2025 Feb: Addition of site/user import tool & import helper scripts from internal archive
 
+# API Development Guide
+## Gotchas and debugging assistance
+### WCF API
+
+error: "102 	Invalid token 	The token is invalid."
+potential cause: mismatched IP (if using managed comute e.g. ADF)
+solution: set up a static IP or private endpoint for your service
+
+error: no logs showing in Viedoc Admin, despite sucessful import
+potential cause: you are importing through the Web REST API,  not the WCF API.
+solution: set up a WCF API client, and use that client GUID
+
+> Note: Renv was developed for [the R multistudy export](.viedoc-export\R_multistudy\multistudy_ingest.R). Other R scripts may have different dependencies.

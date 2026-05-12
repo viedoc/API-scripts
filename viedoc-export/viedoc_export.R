@@ -115,8 +115,16 @@ download_export <- function(url, token, export_id, output_path, extract_zip, rem
       extracted_files <- list.files(output_path)
       
       for (file in extracted_files) {
-        if (startsWith(file, zip_filename_without_extension)) {
-          new_filename <- sub(paste0("^", zip_filename_without_extension, "_?"), "", file)
+        # find index of folder name, else return -1
+        prefix_finder <- regexpr(file, zip_filename_without_extension)[1]
+        if (prefix_finder > 0) {
+          new_filename <- substr(
+            zip_filename_without_extension,
+            # calculate index of end of folder name
+            prefix_finder + nchar(file),  
+            # get index of end of file name
+            nchar(zip_filename_without_extension)
+          )
           new_file_path <- file.path(output_path, new_filename)
           if (file.exists(new_file_path)) {
             file.remove(new_file_path)
